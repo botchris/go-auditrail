@@ -30,7 +30,7 @@ func main() {
     client := auditrail.NewFileLogger(os.Stdout)
 
     // Log a message
-    entry := auditrail.NewEntry("john", "order.deleted", "ordersService)
+    entry := auditrail.NewEntry("john", "order.deleted", "ordersService")
 
     if err := client.Log(context.TODO(), entry); err != nil {
         fmt.Println(err.Error())
