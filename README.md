@@ -22,7 +22,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/auditrail/go-auditrail"
+    "github.com/botchris/go-auditrail"
 )
 
 func main() {
