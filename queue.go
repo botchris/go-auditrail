@@ -152,6 +152,7 @@ func (q *queue) next() queueEnvelope {
 	for q.list.Len() < 1 {
 		if q.closed {
 			q.cond.Broadcast()
+
 			return queueEnvelope{closed: true}
 		}
 

@@ -42,7 +42,6 @@ func (n *discardLogger) Close() error {
 	close(n.closeChannel)
 
 	return nil
-
 }
 
 func (n *discardLogger) Closed() <-chan struct{} {

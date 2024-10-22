@@ -61,6 +61,7 @@ func NewRetryer(dst Logger, opts ...RetryerOption) Logger {
 func (r *retryer) Log(ctx context.Context, entry *Entry) error {
 retry:
 	r.mu.RLock()
+
 	if r.closed {
 		r.mu.RUnlock()
 
