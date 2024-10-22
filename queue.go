@@ -8,54 +8,12 @@ import (
 	"time"
 )
 
-// ErrQueueClosed is returned when the queue is closed.
-var ErrQueueClosed = fmt.Errorf("queue is closed")
-
 // DropHandlerFunc is a function that will be called when a message is dropped
 // from the queue.
 type DropHandlerFunc func(*Entry, error)
 
 // QueueOption is a function that configures a queue.
 type QueueOption func(options *queueOptions)
-
-// WithTimeout controls the maximum amount of time a worker will wait for the target
-// logger to process a message. If the timeout is exceeded, the message will be dropped.
-// If the timeout is less than or equal to zero, it will be set to 3 seconds.
-func WithTimeout(timeout time.Duration) QueueOption {
-	return func(opts *queueOptions) {
-		if timeout <= 0 {
-			timeout = 3 * time.Second
-		}
-
-		opts.timeout = timeout
-	}
-}
-
-// WithDropHandler sets a function that will be called when a message is dropped. The
-// function is called with the dropped message and the error that caused the drop.
-func WithDropHandler(handler DropHandlerFunc) QueueOption {
-	return func(opts *queueOptions) {
-		if handler == nil {
-			handler = func(*Entry, error) {}
-		}
-
-		opts.dropHandling = handler
-	}
-}
-
-// WithThroughput controls the number of concurrent workers that will process messages
-// from the queue. If throughput is less than or equal to zero, it will be set to 1.
-func WithThroughput(throughput int) QueueOption {
-	return func(opts *queueOptions) {
-		if throughput <= 0 {
-			throughput = 1
-		}
-
-		opts.throughput = throughput
-	}
-}
-
-var _ Logger = (*Queue)(nil)
 
 type queueEnvelope struct {
 	message *Entry
@@ -74,16 +32,15 @@ var defaultQueueOptions = queueOptions{
 	throughput:   1,
 }
 
-// Queue is a logger that buffers log entries and processes them asynchronously.
-type Queue struct {
+type queue struct {
 	dst     Logger
 	opts    queueOptions
 	list    *list.List
 	cond    *sync.Cond
-	mu      sync.Mutex
 	once    sync.Once
 	closed  chan struct{}
 	closing bool
+	mu      sync.Mutex
 }
 
 // NewQueue builds a new logger queue which provides a buffer for entries to be
@@ -96,11 +53,9 @@ type Queue struct {
 // The timeout parameter controls the maximum amount of time a worker will wait
 // for the target logger to process a message. If the timeout is exceeded, the
 // message will be dropped.
-//
-
-func NewQueue(dst Logger, options ...QueueOption) *Queue {
+func NewQueue(dst Logger, options ...QueueOption) Closable {
 	opts := defaultQueueOptions
-	q := &Queue{
+	q := &queue{
 		dst:    dst,
 		list:   list.New(),
 		closed: make(chan struct{}),
@@ -121,45 +76,49 @@ func NewQueue(dst Logger, options ...QueueOption) *Queue {
 }
 
 // Log writes the given log entry to the queue for asynchronous processing.
-func (lq *Queue) Log(_ context.Context, entry *Entry) error {
-	lq.mu.Lock()
-	defer lq.mu.Unlock()
+func (q *queue) Log(_ context.Context, entry *Entry) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-	if lq.IsClosed() {
-		return fmt.Errorf("%w: queue is closed", ErrQueueClosed)
+	if q.IsClosed() {
+		return fmt.Errorf("%w: queue is closed", ErrTrailClosed)
 	}
 
-	lq.list.PushBack(queueEnvelope{message: entry})
-	lq.cond.Signal() // signal waiters
+	q.list.PushBack(queueEnvelope{message: entry})
+	q.cond.Signal() // signal waiters
 
 	return nil
 }
 
 // Close shutdown the logger queue.
-func (lq *Queue) Close() error {
-	lq.mu.Lock()
-	defer lq.mu.Unlock()
+func (q *queue) Close() error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-	if lq.IsClosed() {
+	if q.IsClosed() {
 		return nil
 	}
 
 	// set closing flag
-	lq.closing = true
-	lq.cond.Signal() // signal flushes queue
-	lq.cond.Wait()   // wait for signal from last flush
+	q.closing = true
+	q.cond.Signal() // signal flushes queue
+	q.cond.Wait()   // wait for signal from last flush
 
-	lq.once.Do(func() {
-		close(lq.closed)
+	q.once.Do(func() {
+		close(q.closed)
 	})
 
 	return nil
 }
 
+func (q *queue) Closed() <-chan struct{} {
+	return q.closed
+}
+
 // IsClosed returns true if the queue is closed.
-func (lq *Queue) IsClosed() bool {
+func (q *queue) IsClosed() bool {
 	select {
-	case <-lq.closed:
+	case <-q.closed:
 		return true
 	default:
 		return false
@@ -167,18 +126,18 @@ func (lq *Queue) IsClosed() bool {
 }
 
 // run is the main goroutine to flush messages to the target logger.
-func (lq *Queue) run() {
+func (q *queue) run() {
 	baseCtx := context.Background()
 
 	for {
-		envelope := lq.next()
+		envelope := q.next()
 		if envelope.closed {
 			return // queueClosed block means event queue is closed.
 		}
 
-		ctx, cancel := context.WithTimeout(baseCtx, lq.opts.timeout)
-		if err := lq.dst.Log(ctx, envelope.message); err != nil {
-			lq.opts.dropHandling(envelope.message, err)
+		ctx, cancel := context.WithTimeout(baseCtx, q.opts.timeout)
+		if err := q.dst.Log(ctx, envelope.message); err != nil {
+			q.opts.dropHandling(envelope.message, err)
 		}
 
 		cancel()
@@ -188,28 +147,65 @@ func (lq *Queue) run() {
 // next encompasses the critical section of the run loop. When the queue is
 // empty, it will block on the condition. If new data arrives, it will wake
 // and return a block. When closed, queueClosed constant will be returned.
-func (lq *Queue) next() queueEnvelope {
-	lq.mu.Lock()
-	defer lq.mu.Unlock()
+func (q *queue) next() queueEnvelope {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-	for lq.list.Len() < 1 {
-		if lq.closing || lq.IsClosed() {
-			lq.cond.Broadcast()
+	for q.list.Len() < 1 {
+		if q.closing || q.IsClosed() {
+			q.cond.Broadcast()
 
 			return queueEnvelope{closed: true}
 		}
 
-		lq.cond.Wait()
+		q.cond.Wait()
 	}
 
-	front := lq.list.Front()
+	front := q.list.Front()
 	block, ok := front.Value.(queueEnvelope)
 
 	if !ok {
 		return queueEnvelope{closed: true}
 	}
 
-	lq.list.Remove(front)
+	q.list.Remove(front)
 
 	return block
+}
+
+// WithQueueTimeout controls the maximum amount of time a worker will wait for the target
+// logger to process a message. If the timeout is exceeded, the message will be dropped.
+// If the timeout is less than or equal to zero, it will be set to 3 seconds.
+func WithQueueTimeout(timeout time.Duration) QueueOption {
+	return func(opts *queueOptions) {
+		if timeout <= 0 {
+			timeout = 3 * time.Second
+		}
+
+		opts.timeout = timeout
+	}
+}
+
+// WithQueueDropHandler sets a function that will be called when a message is dropped. The
+// function is called with the dropped message and the error that caused the drop.
+func WithQueueDropHandler(handler DropHandlerFunc) QueueOption {
+	return func(opts *queueOptions) {
+		if handler == nil {
+			handler = func(*Entry, error) {}
+		}
+
+		opts.dropHandling = handler
+	}
+}
+
+// WithQueueThroughput controls the number of concurrent workers that will process messages
+// from the queue. If throughput is less than or equal to zero, it will be set to 1.
+func WithQueueThroughput(throughput int) QueueOption {
+	return func(opts *queueOptions) {
+		if throughput <= 0 {
+			throughput = 1
+		}
+
+		opts.throughput = throughput
+	}
 }
