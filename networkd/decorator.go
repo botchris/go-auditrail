@@ -47,3 +47,15 @@ func (h clientDecorator) Log(ctx context.Context, entry *auditrail.Entry) error 
 
 	return h.inner.Log(ctx, entry)
 }
+
+func (h clientDecorator) Close() error {
+	return h.inner.Close()
+}
+
+func (h clientDecorator) Closed() <-chan struct{} {
+	return h.inner.Closed()
+}
+
+func (h clientDecorator) IsClosed() bool {
+	return h.inner.IsClosed()
+}

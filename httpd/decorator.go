@@ -30,3 +30,15 @@ func (h httpDecorator) Log(ctx context.Context, entry *auditrail.Entry) error {
 
 	return h.inner.Log(ctx, entry)
 }
+
+func (h httpDecorator) Close() error {
+	return h.inner.Close()
+}
+
+func (h httpDecorator) Closed() <-chan struct{} {
+	return h.inner.Closed()
+}
+
+func (h httpDecorator) IsClosed() bool {
+	return h.inner.IsClosed()
+}

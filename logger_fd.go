@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 )
 
 type fileDescriptor struct {
-	fd *os.File
+	fd           *os.File
+	closed       bool
+	closeChannel chan struct{}
+	mu           sync.RWMutex
 }
 
 // NewFileLogger builds a new logger that writes log entries to the given file
@@ -41,10 +45,21 @@ func NewFileLogger(fd *os.File) (Logger, error) {
 		return nil, fmt.Errorf("file descriptor is not writable")
 	}
 
-	return &fileDescriptor{fd: fd}, nil
+	return &fileDescriptor{
+		fd:           fd,
+		closeChannel: make(chan struct{}),
+	}, nil
 }
 
 func (dsc *fileDescriptor) Log(_ context.Context, entry *Entry) error {
+	dsc.mu.RLock()
+	closed := dsc.closed
+	dsc.mu.RUnlock()
+
+	if closed {
+		return ErrTrailClosed
+	}
+
 	log, err := json.Marshal(entry)
 	if err != nil {
 		return err
@@ -53,6 +68,35 @@ func (dsc *fileDescriptor) Log(_ context.Context, entry *Entry) error {
 	_, wErr := dsc.fd.WriteString(string(log) + "\n")
 
 	return wErr
+}
+
+func (dsc *fileDescriptor) Close() error {
+	dsc.mu.Lock()
+	defer dsc.mu.Unlock()
+
+	if dsc.closed {
+		return nil
+	}
+
+	dsc.closed = true
+
+	close(dsc.closeChannel)
+
+	return dsc.fd.Close()
+}
+
+func (dsc *fileDescriptor) Closed() <-chan struct{} {
+	dsc.mu.RLock()
+	defer dsc.mu.RUnlock()
+
+	return dsc.closeChannel
+}
+
+func (dsc *fileDescriptor) IsClosed() bool {
+	dsc.mu.RLock()
+	defer dsc.mu.RUnlock()
+
+	return dsc.closed
 }
 
 // NewFilePathLogger builds a new logger that writes log entries to a file at

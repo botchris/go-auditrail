@@ -13,15 +13,28 @@ var _ Logger = (*MemoryLogger)(nil)
 // This logger is safe for concurrent use and can be shared across multiple
 // goroutines.
 type MemoryLogger struct {
-	logs []Entry
-	ids  map[string]struct{}
-	mu   sync.RWMutex
+	logs         []Entry
+	ids          map[string]struct{}
+	closed       bool
+	closeChannel chan struct{}
+	mu           sync.RWMutex
+}
+
+// NewMemoryLogger creates a new MemoryLogger.
+func NewMemoryLogger() *MemoryLogger {
+	return &MemoryLogger{
+		closeChannel: make(chan struct{}),
+	}
 }
 
 // Log records the log event.
 func (s *MemoryLogger) Log(_ context.Context, event *Entry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.closed {
+		return ErrTrailClosed
+	}
 
 	if s.ids == nil {
 		s.ids = make(map[string]struct{})
@@ -31,6 +44,35 @@ func (s *MemoryLogger) Log(_ context.Context, event *Entry) error {
 	s.ids[event.IdempotencyID] = struct{}{}
 
 	return nil
+}
+
+func (s *MemoryLogger) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	s.closed = true
+
+	close(s.closeChannel)
+
+	return nil
+}
+
+func (s *MemoryLogger) Closed() <-chan struct{} {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.closeChannel
+}
+
+func (s *MemoryLogger) IsClosed() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.closed
 }
 
 // Size returns the number of logs recorded.

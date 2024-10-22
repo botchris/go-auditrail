@@ -13,18 +13,13 @@ type Logger interface {
 	// Log writes the given log entry to the audit log, returning an error
 	// indicates that the log entry could not be written and should be retried.
 	Log(context.Context, *Entry) error
-}
 
-// Closable is a trail logger that can be closed/stopped and waited for.
-type Closable interface {
-	Logger
-
-	// Close closes the retryer and waits for all messages to be processed.
+	// Close closes logger and releases any resources.
 	Close() error
 
-	// Closed returns a channel that is closed when the retryer is closed.
+	// Closed returns a channel that is closed when the logger is closed.
 	Closed() <-chan struct{}
 
-	// IsClosed returns true if the retryer is closed.
+	// IsClosed returns true if the logger is closed.
 	IsClosed() bool
 }
