@@ -71,7 +71,7 @@ func TestRetryerExponentialBackoffV2(t *testing.T) {
 func testRetryerStrategy(t *testing.T, ctx context.Context, strategy auditrail.RetryStrategy) {
 	const nm = 100
 
-	tl := &auditrail.MemoryLogger{}
+	tl := auditrail.NewMemoryLogger()
 
 	// Make a sync that fails most of the time, ensuring that all the messages
 	// make it through.
@@ -130,7 +130,7 @@ func (fs *flakyLogger) Log(ctx context.Context, e *auditrail.Entry) error {
 	return fs.Logger.Log(ctx, e)
 }
 
-func checkClose(t *testing.T, ctx context.Context, trail auditrail.Closable) {
+func checkClose(t *testing.T, ctx context.Context, trail auditrail.Logger) {
 	if err := trail.Close(); err != nil {
 		t.Fatalf("unexpected error closing: %v", err)
 	}

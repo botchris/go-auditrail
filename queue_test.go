@@ -17,13 +17,13 @@ func TestQueue(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	dst := &auditrail.MemoryLogger{}
+	dst := auditrail.NewMemoryLogger()
 	dl := &delayed{
 		Logger: dst,
 		delay:  time.Millisecond * 1,
 	}
 
-	queue := auditrail.NewQueue(dl, auditrail.WithQueueThroughput(1))
+	queue := auditrail.NewQueue(dl, auditrail.WithQueueThroughput(3))
 
 	time.Sleep(20 * time.Millisecond) // let's queue settle to wait condition.
 
@@ -91,6 +91,7 @@ func TestQueueDrop(t *testing.T) {
 }
 
 type dropper struct {
+	auditrail.Logger
 	err    error
 	closed bool
 	mu     sync.Mutex

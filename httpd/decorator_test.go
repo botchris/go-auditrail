@@ -27,7 +27,7 @@ func TestDecorator(t *testing.T) {
 		},
 	})
 
-	logger := &auditrail.MemoryLogger{}
+	logger := auditrail.NewMemoryLogger()
 	d := httpd.Decorator(logger)
 
 	for i := 0; i < 100; i++ {

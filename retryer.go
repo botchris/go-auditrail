@@ -36,18 +36,19 @@ type retryer struct {
 	dst          Logger
 	strategy     RetryStrategy
 	dropHandling DropHandlerFunc
-	once         sync.Once
-	closed       chan struct{}
+	closed       bool
+	closedChan   chan struct{}
+	mu           sync.RWMutex
 }
 
 // NewRetryer creates a new retryer that will retry failed log writes using the
 // provided strategy.
-func NewRetryer(dst Logger, opts ...RetryerOption) Closable {
+func NewRetryer(dst Logger, opts ...RetryerOption) Logger {
 	r := &retryer{
 		dst:          dst,
 		strategy:     NewExponentialBackoff(DefaultExponentialBackoffConfig),
 		dropHandling: func(entry *Entry, err error) {},
-		closed:       make(chan struct{}),
+		closedChan:   make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -59,9 +60,15 @@ func NewRetryer(dst Logger, opts ...RetryerOption) Closable {
 
 func (r *retryer) Log(ctx context.Context, entry *Entry) error {
 retry:
-	if r.IsClosed() {
+	r.mu.RLock()
+
+	if r.closed {
+		r.mu.RUnlock()
+
 		return fmt.Errorf("%w: retriyer could not log the given entry", ErrTrailClosed)
 	}
+
+	r.mu.RUnlock()
 
 	if backoff := r.strategy.Proceed(entry); backoff > 0 {
 		select {
@@ -97,30 +104,36 @@ retry:
 }
 
 func (r *retryer) Close() error {
-	if closable, ok := r.dst.(Closable); ok {
-		if errS := closable.Close(); errS != nil {
-			return fmt.Errorf("%w: retrying sink could not close underlying sink", errS)
-		}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.closed {
+		return nil
 	}
 
-	r.once.Do(func() {
-		close(r.closed)
-	})
+	if err := r.dst.Close(); err != nil {
+		return fmt.Errorf("%w: retrying sink could not close underlying sink", err)
+	}
+
+	r.closed = true
+
+	close(r.closedChan)
 
 	return nil
 }
 
 func (r *retryer) Closed() <-chan struct{} {
-	return r.closed
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.closedChan
 }
 
 func (r *retryer) IsClosed() bool {
-	select {
-	case <-r.closed:
-		return true
-	default:
-		return false
-	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.closed
 }
 
 // WithRetryStrategy configures the retry strategy for the retryer. If strategy is

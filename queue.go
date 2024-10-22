@@ -33,32 +33,24 @@ var defaultQueueOptions = queueOptions{
 }
 
 type queue struct {
-	dst     Logger
-	opts    queueOptions
-	list    *list.List
-	cond    *sync.Cond
-	once    sync.Once
-	closed  chan struct{}
-	closing bool
-	mu      sync.Mutex
+	dst          Logger
+	opts         queueOptions
+	list         *list.List
+	cond         *sync.Cond
+	closed       bool
+	closeChannel chan struct{}
+	mu           sync.RWMutex
+	wg           sync.WaitGroup
 }
 
 // NewQueue builds a new logger queue which provides a buffer for entries to be
-// processed asynchronously.
-//
-// The throughput parameter controls the number of concurrent workers that will
-// process messages from the queue. If throughput is less than or equal to zero,
-// it will be set to 1.
-//
-// The timeout parameter controls the maximum amount of time a worker will wait
-// for the target logger to process a message. If the timeout is exceeded, the
-// message will be dropped.
-func NewQueue(dst Logger, options ...QueueOption) Closable {
+// processed asynchronously. See options for configuration.
+func NewQueue(dst Logger, options ...QueueOption) Logger {
 	opts := defaultQueueOptions
 	q := &queue{
-		dst:    dst,
-		list:   list.New(),
-		closed: make(chan struct{}),
+		dst:          dst,
+		list:         list.New(),
+		closeChannel: make(chan struct{}),
 	}
 
 	for _, option := range options {
@@ -67,6 +59,8 @@ func NewQueue(dst Logger, options ...QueueOption) Closable {
 
 	q.opts = opts
 	q.cond = sync.NewCond(&q.mu)
+
+	q.wg.Add(q.opts.throughput)
 
 	for i := 0; i < q.opts.throughput; i++ {
 		go q.run()
@@ -80,12 +74,12 @@ func (q *queue) Log(_ context.Context, entry *Entry) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if q.IsClosed() {
+	if q.closed {
 		return fmt.Errorf("%w: queue is closed", ErrTrailClosed)
 	}
 
-	q.list.PushBack(queueEnvelope{message: entry})
-	q.cond.Signal() // signal waiters
+	q.list.PushBack(queueEnvelope{message: entry}) // add to queue
+	q.cond.Signal()                                // signal waiters
 
 	return nil
 }
@@ -93,40 +87,44 @@ func (q *queue) Log(_ context.Context, entry *Entry) error {
 // Close shutdown the logger queue.
 func (q *queue) Close() error {
 	q.mu.Lock()
-	defer q.mu.Unlock()
+	if q.closed {
+		q.mu.Unlock()
 
-	if q.IsClosed() {
 		return nil
 	}
 
 	// set closing flag
-	q.closing = true
+	q.closed = true
+
 	q.cond.Signal() // signal flushes queue
 	q.cond.Wait()   // wait for signal from last flush
+	q.mu.Unlock()   // unlock to allow workers to finish
+	q.wg.Wait()     // wait for all worker goroutines to finish
 
-	q.once.Do(func() {
-		close(q.closed)
-	})
+	defer close(q.closeChannel)
 
-	return nil
+	return q.dst.Close()
 }
 
 func (q *queue) Closed() <-chan struct{} {
-	return q.closed
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
+	return q.closeChannel
 }
 
 // IsClosed returns true if the queue is closed.
 func (q *queue) IsClosed() bool {
-	select {
-	case <-q.closed:
-		return true
-	default:
-		return false
-	}
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
+	return q.closed
 }
 
 // run is the main goroutine to flush messages to the target logger.
 func (q *queue) run() {
+	defer q.wg.Done()
+
 	baseCtx := context.Background()
 
 	for {
@@ -152,7 +150,7 @@ func (q *queue) next() queueEnvelope {
 	defer q.mu.Unlock()
 
 	for q.list.Len() < 1 {
-		if q.closing || q.IsClosed() {
+		if q.closed {
 			q.cond.Broadcast()
 
 			return queueEnvelope{closed: true}
