@@ -2,6 +2,9 @@ package auditrail_test
 
 import (
 	"context"
+	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,35 +17,109 @@ func TestQueue(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	t.Run("GIVEN a queue instance with a test logger", func(t *testing.T) {
-		dst := &auditrail.MemoryLogger{}
-		queue := auditrail.NewQueue(dst, auditrail.WithThroughput(10))
+	dst := &auditrail.MemoryLogger{}
+	dl := &delayed{
+		Logger: dst,
+		delay:  time.Millisecond * 1,
+	}
 
-		t.Run("WHEN logging 10000 entries in parallel", func(t *testing.T) {
-			n := 10000
-			syncer := make(chan struct{})
+	queue := auditrail.NewQueue(dl, auditrail.WithQueueThroughput(1))
 
-			for i := 0; i < n; i++ {
-				go func() {
-					<-syncer
+	time.Sleep(20 * time.Millisecond) // let's queue settle to wait condition.
 
-					entry := auditrail.NewEntry(
-						gofakeit.Username(),
-						gofakeit.VerbAction(),
-						gofakeit.AppName(),
-					)
+	n := 1000
+	wg := sync.WaitGroup{}
 
-					require.NoError(t, queue.Log(ctx, entry))
-				}()
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			entry := auditrail.NewEntry(
+				gofakeit.Username(),
+				gofakeit.VerbAction(),
+				gofakeit.AppName(),
+			)
+
+			require.NoError(t, queue.Log(ctx, entry))
+		}()
+	}
+
+	wg.Wait()
+	checkClose(t, ctx, queue)
+
+	require.EqualValues(t, n, dst.Size())
+	require.True(t, queue.IsClosed())
+}
+
+func TestQueueDrop(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	const nm = 10
+
+	cc := &atomic.Int64{}
+	eq := auditrail.NewQueue(
+		&dropper{err: errors.New("dropped")},
+		auditrail.WithQueueThroughput(1),
+		auditrail.WithQueueDropHandler(func(*auditrail.Entry, error) { cc.Add(1) }),
+	)
+
+	time.Sleep(10 * time.Millisecond) // let's queue settle to wait condition.
+
+	var wg sync.WaitGroup
+
+	for i := 1; i <= nm; i++ {
+		wg.Add(1)
+
+		go func(m *auditrail.Entry) {
+			defer wg.Done()
+
+			if err := eq.Log(ctx, m); err != nil {
+				t.Errorf("error writing message: %v", err)
 			}
+		}(auditrail.NewEntry(
+			gofakeit.Username(),
+			gofakeit.VerbAction(),
+			gofakeit.AppName(),
+		))
+	}
 
-			close(syncer)
+	wg.Wait()
+	checkClose(t, ctx, eq)
+}
 
-			t.Run("THEN destination logger eventually receives all the entries", func(t *testing.T) {
-				require.Eventually(t, func() bool {
-					return dst.Size() == n
-				}, 10*time.Second, 200*time.Millisecond)
-			})
-		})
-	})
+type dropper struct {
+	err    error
+	closed bool
+	mu     sync.Mutex
+}
+
+func (d *dropper) Log(context.Context, *auditrail.Entry) error {
+	return d.err
+}
+
+func (d *dropper) Close() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.closed {
+		return nil
+	}
+
+	d.closed = true
+
+	return nil
+}
+
+type delayed struct {
+	auditrail.Logger
+	delay time.Duration
+}
+
+func (d *delayed) Log(ctx context.Context, e *auditrail.Entry) error {
+	time.Sleep(d.delay)
+
+	return d.Logger.Log(ctx, e)
 }
