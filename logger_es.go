@@ -35,8 +35,6 @@ func (e *elasticLogger) Log(ctx context.Context, entry *Entry) error {
 		return ErrTrailClosed
 	}
 
-	e.mu.RUnlock()
-
 	body, err := json.Marshal(entry)
 	if err != nil {
 		return err
