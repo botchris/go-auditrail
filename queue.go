@@ -78,8 +78,8 @@ func (q *queue) Log(_ context.Context, entry *Entry) error {
 		return fmt.Errorf("%w: queue is closed", ErrTrailClosed)
 	}
 
-	q.list.PushBack(queueEnvelope{message: entry})
-	q.cond.Signal() // signal waiters
+	q.list.PushBack(queueEnvelope{message: entry}) // add to queue
+	q.cond.Signal()                                // signal waiters
 
 	return nil
 }

@@ -33,6 +33,14 @@ func NewKinesisLogger(client KinesisAPI, streamName string) (Logger, error) {
 }
 
 func (l *kinesisLogger) Log(ctx context.Context, entry *Entry) error {
+	l.mu.RLock()
+	closed := l.closed
+	l.mu.RUnlock()
+
+	if closed {
+		return ErrTrailClosed
+	}
+
 	log, err := json.Marshal(entry)
 	if err != nil {
 		return err
