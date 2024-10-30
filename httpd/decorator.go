@@ -3,7 +3,7 @@ package httpd
 import (
 	"context"
 
-	"github.com/botchris/auditrail"
+	"github.com/botchris/go-auditrail"
 )
 
 type httpDecorator struct {

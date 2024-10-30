@@ -3,7 +3,7 @@ package httpd
 import (
 	"context"
 
-	"github.com/botchris/auditrail/grpcx"
+	"github.com/botchris/go-auditrail/grpcx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )

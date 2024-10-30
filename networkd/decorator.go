@@ -3,7 +3,7 @@ package networkd
 import (
 	"context"
 
-	"github.com/botchris/auditrail"
+	"github.com/botchris/go-auditrail"
 )
 
 type clientDecorator struct {

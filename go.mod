@@ -1,4 +1,4 @@
-module github.com/botchris/auditrail
+module github.com/botchris/go-auditrail
 
 go 1.23
 

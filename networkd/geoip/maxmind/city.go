@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/botchris/auditrail/networkd"
+	"github.com/botchris/go-auditrail/networkd"
 	"github.com/oschwald/geoip2-golang"
 )
 
