@@ -3,8 +3,8 @@ package networkd_test
 import (
 	"testing"
 
-	"github.com/botchris/auditrail/networkd"
-	"github.com/botchris/auditrail/networkd/geoip/maxmind"
+	"github.com/botchris/go-auditrail/networkd"
+	"github.com/botchris/go-auditrail/networkd/geoip/maxmind"
 	"github.com/stretchr/testify/require"
 )
 

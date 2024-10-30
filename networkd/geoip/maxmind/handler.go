@@ -3,7 +3,7 @@ package maxmind
 import (
 	"net"
 
-	"github.com/botchris/auditrail/networkd"
+	"github.com/botchris/go-auditrail/networkd"
 )
 
 type handler interface {

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/botchris/auditrail"
-	"github.com/botchris/auditrail/httpd"
-	"github.com/botchris/auditrail/networkd"
+	"github.com/botchris/go-auditrail"
+	"github.com/botchris/go-auditrail/httpd"
+	"github.com/botchris/go-auditrail/networkd"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/stretchr/testify/require"
 )
