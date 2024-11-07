@@ -27,13 +27,13 @@ func TestKinesisLogger(t *testing.T) {
 			n := 100
 
 			for i := 0; i < n; i++ {
-				entry := &auditrail.Entry{
-					Actor:      gofakeit.UUID(),
-					AuthMethod: gofakeit.UUID(),
-					Action:     gofakeit.Emoji(),
-					Module:     gofakeit.Emoji(),
-					OccurredAt: time.Now(),
-				}
+				entry := auditrail.NewEntry(
+					gofakeit.UUID(),
+					gofakeit.Emoji(),
+					gofakeit.Emoji(),
+				).
+					WithAuthMethod(gofakeit.UUID()).
+					WithOccurredAt(time.Now())
 
 				require.NoError(t, logger.Log(ctx, entry))
 			}

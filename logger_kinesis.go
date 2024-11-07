@@ -48,7 +48,7 @@ func (l *kinesisLogger) Log(ctx context.Context, entry *Entry) error {
 
 	_, err = l.client.PutRecord(ctx, &kinesis.PutRecordInput{
 		Data:         append(log, '\n'),
-		PartitionKey: aws.String(entry.Module),
+		PartitionKey: aws.String(entry.GetModule()),
 		StreamName:   &l.streamName,
 	})
 

@@ -44,7 +44,7 @@ func (e *elasticLogger) Log(ctx context.Context, entry *Entry) error {
 		e.index,
 		strings.NewReader(string(body)),
 		e.client.Index.WithContext(ctx),
-		e.client.Index.WithDocumentID(entry.IdempotencyID),
+		e.client.Index.WithDocumentID(entry.GetIdempotencyID()),
 	)
 
 	return err
