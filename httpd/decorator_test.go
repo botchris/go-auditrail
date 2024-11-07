@@ -38,12 +38,15 @@ func TestDecorator(t *testing.T) {
 	require.Equal(t, 100, logger.Size())
 
 	for _, log := range logger.Trail() {
-		require.NotEmpty(t, log.Details["http"])
-		require.NotEmpty(t, log.Details["http"].(httpd.Details))
+		details := log.GetDetails()
+
+		require.NotEmpty(t, details["http"])
+		require.IsType(t, httpd.Details{}, details["http"])
 
 		s, err := json.Marshal(log)
-		require.NoError(t, err)
 
-		println(string(s))
+		require.NoError(t, err)
+		require.NotEmpty(t, string(s))
+		require.NotEqual(t, "{}", string(s))
 	}
 }
