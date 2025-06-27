@@ -14,9 +14,9 @@ func Read(reader io.ReadCloser, err error) io.Reader {
 	}
 
 	buffer := &bytes.Buffer{}
-
 	_, err = io.Copy(buffer, reader)
 	reader.Close()
+
 	if err != nil {
 		log.Fatalf("%v: failed to read from reader", err)
 	}
