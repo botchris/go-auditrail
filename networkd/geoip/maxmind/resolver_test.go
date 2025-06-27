@@ -1,6 +1,9 @@
 package maxmind_test
 
 import (
+	"io"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/botchris/go-auditrail/networkd/geoip/maxmind"
@@ -9,13 +12,13 @@ import (
 
 func TestMaxmind(t *testing.T) {
 	resolver, err := maxmind.NewMaxmindGeoIPResolver(
-		maxmind.WithASNDatabase("testdata/GeoLite2-ASN.mmdb"),
-		maxmind.WithCityDatabase("testdata/GeoIP2-City-Test.mmdb"),
-		maxmind.WithCountryDatabase("testdata/GeoIP2-Country-Test.mmdb"),
-		maxmind.WithISPDatabase("testdata/GeoIP2-ISP-Test.mmdb"),
-		maxmind.WithDomainDatabase("testdata/GeoIP2-Domain-Test.mmdb"),
-		maxmind.WithConnectionTypeDatabase("testdata/GeoIP2-Connection-Type-Test.mmdb"),
-		maxmind.WithEnterpriseDatabase("testdata/GeoIP2-Enterprise-Test.mmdb"),
+		maxmind.WithASNDatabase(Must[io.ReadCloser](os.Open("testdata/GeoLite2-ASN.mmdb"))),
+		maxmind.WithCityDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-City-Test.mmdb"))),
+		maxmind.WithCountryDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-Country-Test.mmdb"))),
+		maxmind.WithISPDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-ISP-Test.mmdb"))),
+		maxmind.WithDomainDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-Domain-Test.mmdb"))),
+		maxmind.WithConnectionTypeDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-Connection-Type-Test.mmdb"))),
+		maxmind.WithEnterpriseDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-Enterprise-Test.mmdb"))),
 	)
 
 	require.NoError(t, err)
@@ -40,13 +43,13 @@ func TestMaxmind(t *testing.T) {
 
 func BenchmarkMaxmindResolve(b *testing.B) {
 	resolver, err := maxmind.NewMaxmindGeoIPResolver(
-		maxmind.WithASNDatabase("testdata/GeoLite2-ASN.mmdb"),
-		maxmind.WithCityDatabase("testdata/GeoIP2-City-Test.mmdb"),
-		maxmind.WithCountryDatabase("testdata/GeoIP2-Country-Test.mmdb"),
-		maxmind.WithISPDatabase("testdata/GeoIP2-ISP-Test.mmdb"),
-		maxmind.WithDomainDatabase("testdata/GeoIP2-Domain-Test.mmdb"),
-		maxmind.WithConnectionTypeDatabase("testdata/GeoIP2-Connection-Type-Test.mmdb"),
-		maxmind.WithEnterpriseDatabase("testdata/GeoIP2-Enterprise-Test.mmdb"),
+		maxmind.WithASNDatabase(Must[io.ReadCloser](os.Open("testdata/GeoLite2-ASN.mmdb"))),
+		maxmind.WithCityDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-City-Test.mmdb"))),
+		maxmind.WithCountryDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-Country-Test.mmdb"))),
+		maxmind.WithISPDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-ISP-Test.mmdb"))),
+		maxmind.WithDomainDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-Domain-Test.mmdb"))),
+		maxmind.WithConnectionTypeDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-Connection-Type-Test.mmdb"))),
+		maxmind.WithEnterpriseDatabase(Must[io.ReadCloser](os.Open("testdata/GeoIP2-Enterprise-Test.mmdb"))),
 	)
 
 	require.NoError(b, err)
@@ -56,4 +59,13 @@ func BenchmarkMaxmindResolve(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = resolver.Resolve("81.2.69.142")
 	}
+}
+
+// Must is a helper function that asserts that an error is nil and returns the value.
+func Must[T any](value T, err error) T {
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	return value
 }

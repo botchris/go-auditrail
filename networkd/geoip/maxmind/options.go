@@ -1,14 +1,22 @@
 package maxmind
 
-import "github.com/oschwald/geoip2-golang"
+import (
+	"github.com/oschwald/geoip2-golang"
+	"io"
+)
 
 // Option is a functional option for configuring the Maxmind GeoIP resolver.
 type Option func(m *maxmindGeoIPResolver) error
 
 // WithASNDatabase loads the ASN database from the given path.
-func WithASNDatabase(path string) Option {
+func WithASNDatabase(reader io.ReadCloser) Option {
 	return func(m *maxmindGeoIPResolver) error {
-		db, err := geoip2.Open(path)
+		b, err := bytesFromReader(reader)
+		if err != nil {
+			return err
+		}
+
+		db, err := geoip2.FromBytes(b)
 		if err != nil {
 			return err
 		}
@@ -20,9 +28,14 @@ func WithASNDatabase(path string) Option {
 }
 
 // WithCountryDatabase loads the country database from the given path.
-func WithCountryDatabase(path string) Option {
+func WithCountryDatabase(reader io.ReadCloser) Option {
 	return func(m *maxmindGeoIPResolver) error {
-		db, err := geoip2.Open(path)
+		b, err := bytesFromReader(reader)
+		if err != nil {
+			return err
+		}
+
+		db, err := geoip2.FromBytes(b)
 		if err != nil {
 			return err
 		}
@@ -34,9 +47,14 @@ func WithCountryDatabase(path string) Option {
 }
 
 // WithCityDatabase loads the city database from the given path.
-func WithCityDatabase(path string) Option {
+func WithCityDatabase(reader io.ReadCloser) Option {
 	return func(m *maxmindGeoIPResolver) error {
-		db, err := geoip2.Open(path)
+		b, err := bytesFromReader(reader)
+		if err != nil {
+			return err
+		}
+
+		db, err := geoip2.FromBytes(b)
 		if err != nil {
 			return err
 		}
@@ -48,9 +66,14 @@ func WithCityDatabase(path string) Option {
 }
 
 // WithISPDatabase loads the ISP database from the given path.
-func WithISPDatabase(path string) Option {
+func WithISPDatabase(reader io.ReadCloser) Option {
 	return func(m *maxmindGeoIPResolver) error {
-		db, err := geoip2.Open(path)
+		b, err := bytesFromReader(reader)
+		if err != nil {
+			return err
+		}
+
+		db, err := geoip2.FromBytes(b)
 		if err != nil {
 			return err
 		}
@@ -62,9 +85,14 @@ func WithISPDatabase(path string) Option {
 }
 
 // WithDomainDatabase loads the Domain database from the given path.
-func WithDomainDatabase(path string) Option {
+func WithDomainDatabase(reader io.ReadCloser) Option {
 	return func(m *maxmindGeoIPResolver) error {
-		db, err := geoip2.Open(path)
+		b, err := bytesFromReader(reader)
+		if err != nil {
+			return err
+		}
+
+		db, err := geoip2.FromBytes(b)
 		if err != nil {
 			return err
 		}
@@ -77,9 +105,14 @@ func WithDomainDatabase(path string) Option {
 
 // WithConnectionTypeDatabase loads the Connection-Type database from the given
 // path.
-func WithConnectionTypeDatabase(path string) Option {
+func WithConnectionTypeDatabase(reader io.ReadCloser) Option {
 	return func(m *maxmindGeoIPResolver) error {
-		db, err := geoip2.Open(path)
+		b, err := bytesFromReader(reader)
+		if err != nil {
+			return err
+		}
+
+		db, err := geoip2.FromBytes(b)
 		if err != nil {
 			return err
 		}
@@ -91,9 +124,14 @@ func WithConnectionTypeDatabase(path string) Option {
 }
 
 // WithEnterpriseDatabase loads the Enterprise database from the given path.
-func WithEnterpriseDatabase(path string) Option {
+func WithEnterpriseDatabase(reader io.ReadCloser) Option {
 	return func(m *maxmindGeoIPResolver) error {
-		db, err := geoip2.Open(path)
+		b, err := bytesFromReader(reader)
+		if err != nil {
+			return err
+		}
+
+		db, err := geoip2.FromBytes(b)
 		if err != nil {
 			return err
 		}
@@ -102,4 +140,10 @@ func WithEnterpriseDatabase(path string) Option {
 
 		return nil
 	}
+}
+
+func bytesFromReader(reader io.ReadCloser) ([]byte, error) {
+	defer reader.Close()
+
+	return io.ReadAll(reader)
 }
