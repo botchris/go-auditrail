@@ -1,6 +1,10 @@
 package networkd_test
 
 import (
+	"bytes"
+	"io"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/botchris/go-auditrail/networkd"
@@ -10,13 +14,13 @@ import (
 
 func TestNewCachedIPResolver(t *testing.T) {
 	inner, err := maxmind.NewMaxmindGeoIPResolver(
-		maxmind.WithASNDatabase("geoip/maxmind/testdata/GeoLite2-ASN.mmdb"),
-		maxmind.WithCityDatabase("geoip/maxmind/testdata/GeoIP2-City-Test.mmdb"),
-		maxmind.WithCountryDatabase("geoip/maxmind/testdata/GeoIP2-Country-Test.mmdb"),
-		maxmind.WithISPDatabase("geoip/maxmind/testdata/GeoIP2-ISP-Test.mmdb"),
-		maxmind.WithDomainDatabase("geoip/maxmind/testdata/GeoIP2-Domain-Test.mmdb"),
-		maxmind.WithConnectionTypeDatabase("geoip/maxmind/testdata/GeoIP2-Connection-Type-Test.mmdb"),
-		maxmind.WithEnterpriseDatabase("geoip/maxmind/testdata/GeoIP2-Enterprise-Test.mmdb"),
+		maxmind.WithASNDatabase(Must(os.Open("geoip/maxmind/testdata/GeoLite2-ASN.mmdb"))),
+		maxmind.WithCityDatabase(Must(os.Open("geoip/maxmind/testdata/GeoIP2-City-Test.mmdb"))),
+		maxmind.WithCountryDatabase(Must(os.Open("geoip/maxmind/testdata/GeoIP2-Country-Test.mmdb"))),
+		maxmind.WithISPDatabase(Must(os.Open("geoip/maxmind/testdata/GeoIP2-ISP-Test.mmdb"))),
+		maxmind.WithDomainDatabase(Must(os.Open("geoip/maxmind/testdata/GeoIP2-Domain-Test.mmdb"))),
+		maxmind.WithConnectionTypeDatabase(Must(os.Open("geoip/maxmind/testdata/GeoIP2-Connection-Type-Test.mmdb"))),
+		maxmind.WithEnterpriseDatabase(Must(os.Open("geoip/maxmind/testdata/GeoIP2-Enterprise-Test.mmdb"))),
 	)
 	require.NoError(t, err)
 
@@ -27,4 +31,21 @@ func TestNewCachedIPResolver(t *testing.T) {
 	require.NotEmpty(t, geoip.Timezone)
 
 	require.Equal(t, 1, resolver.Size())
+}
+
+// Must is a helper function that asserts that an error is nil and returns the reader.
+func Must(reader io.ReadCloser, err error) io.Reader {
+	if err != nil {
+		log.Fatalf("%v: unexpected error", err)
+	}
+
+	defer reader.Close()
+
+	buffer := &bytes.Buffer{}
+	_, err = io.Copy(buffer, reader)
+	if err != nil {
+		log.Fatalf("%v: failed to read from reader", err)
+	}
+
+	return buffer
 }
