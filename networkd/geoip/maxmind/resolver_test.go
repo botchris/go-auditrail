@@ -1,9 +1,6 @@
 package maxmind_test
 
 import (
-	"bytes"
-	"io"
-	"log"
 	"os"
 	"testing"
 
@@ -61,21 +58,4 @@ func BenchmarkMaxmindResolve(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = resolver.Resolve("81.2.69.142")
 	}
-}
-
-// Must is a helper function that asserts that an error is nil and returns the reader.
-func Must(reader io.ReadCloser, err error) io.Reader {
-	if err != nil {
-		log.Fatalf("%v: unexpected error", err)
-	}
-
-	defer reader.Close()
-
-	buffer := &bytes.Buffer{}
-	_, err = io.Copy(buffer, reader)
-	if err != nil {
-		log.Fatalf("%v: failed to read from reader", err)
-	}
-
-	return buffer
 }
