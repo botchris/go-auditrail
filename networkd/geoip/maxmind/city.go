@@ -12,6 +12,7 @@ type cityResolver struct {
 	db *geoip2.Reader
 }
 
+//nolint:gocyclo
 func (a *cityResolver) handle(ip net.IP, geoIP *networkd.GeoIP) {
 	record, err := a.db.City(ip)
 	if err != nil {
