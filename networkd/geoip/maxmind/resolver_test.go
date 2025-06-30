@@ -11,7 +11,7 @@ import (
 
 func TestMaxmind(t *testing.T) {
 	resolver, err := maxmind.NewMaxmindGeoIPResolver(
-		maxmind.WithASNDatabase(must.Read(os.Open("testdata/GeoLite2-ASN.mmdb"))),
+		maxmind.WithASNDatabase(must.Read(os.Open("testdata/GeoLite2-ASN-Test.mmdb"))),
 		maxmind.WithCityDatabase(must.Read(os.Open("testdata/GeoIP2-City-Test.mmdb"))),
 		maxmind.WithCountryDatabase(must.Read(os.Open("testdata/GeoIP2-Country-Test.mmdb"))),
 		maxmind.WithISPDatabase(must.Read(os.Open("testdata/GeoIP2-ISP-Test.mmdb"))),
@@ -42,7 +42,7 @@ func TestMaxmind(t *testing.T) {
 
 func BenchmarkMaxmindResolve(b *testing.B) {
 	resolver, err := maxmind.NewMaxmindGeoIPResolver(
-		maxmind.WithASNDatabase(must.Read(os.Open("testdata/GeoLite2-ASN.mmdb"))),
+		maxmind.WithASNDatabase(must.Read(os.Open("testdata/GeoLite2-ASN-Test.mmdb"))),
 		maxmind.WithCityDatabase(must.Read(os.Open("testdata/GeoIP2-City-Test.mmdb"))),
 		maxmind.WithCountryDatabase(must.Read(os.Open("testdata/GeoIP2-Country-Test.mmdb"))),
 		maxmind.WithISPDatabase(must.Read(os.Open("testdata/GeoIP2-ISP-Test.mmdb"))),
@@ -58,4 +58,21 @@ func BenchmarkMaxmindResolve(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = resolver.Resolve("81.2.69.142")
 	}
+}
+
+func TestMaxmind_Lite(t *testing.T) {
+	resolver, err := maxmind.NewMaxmindGeoIPResolver(
+		maxmind.WithCountryDatabase(must.Read(os.Open("testdata/GeoLite2-Country-Test.mmdb"))),
+		maxmind.WithCityDatabase(must.Read(os.Open("testdata/GeoLite2-City-Test.mmdb"))),
+		maxmind.WithASNDatabase(must.Read(os.Open("testdata/GeoLite2-ASN-Test.mmdb"))),
+	)
+
+	require.NoError(t, err)
+
+	geoIP := resolver.Resolve("1.128.0.0")
+	require.NotEmpty(t, geoIP.AS.Name)
+
+	geoIP = resolver.Resolve("81.2.69.142")
+	require.NotEmpty(t, geoIP.Country.Name)
+	require.NotEmpty(t, geoIP.City.Code)
 }

@@ -12,7 +12,7 @@ import (
 
 func TestNewCachedIPResolver(t *testing.T) {
 	inner, err := maxmind.NewMaxmindGeoIPResolver(
-		maxmind.WithASNDatabase(must.Read(os.Open("geoip/maxmind/testdata/GeoLite2-ASN.mmdb"))),
+		maxmind.WithASNDatabase(must.Read(os.Open("geoip/maxmind/testdata/GeoLite2-ASN-Test.mmdb"))),
 		maxmind.WithCityDatabase(must.Read(os.Open("geoip/maxmind/testdata/GeoIP2-City-Test.mmdb"))),
 		maxmind.WithCountryDatabase(must.Read(os.Open("geoip/maxmind/testdata/GeoIP2-Country-Test.mmdb"))),
 		maxmind.WithISPDatabase(must.Read(os.Open("geoip/maxmind/testdata/GeoIP2-ISP-Test.mmdb"))),
