@@ -30,8 +30,16 @@ func (a *cityResolver) handle(ip net.IP, geoIP *networkd.GeoIP) {
 		geoIP.Continent.Code = record.Continent.Code
 	}
 
-	if geoIP.Continent.Name == "" && record.Country.Names["en"] != "" {
+	if geoIP.Continent.Name == "" && record.Continent.Names["en"] != "" {
+		geoIP.Continent.Name = record.Continent.Names["en"]
+	}
+
+	if geoIP.Country.Name == "" && record.Country.Names["en"] != "" {
 		geoIP.Country.Name = record.Country.Names["en"]
+	}
+
+	if geoIP.Country.Code == "" && record.Country.IsoCode != "" {
+		geoIP.Country.Code = record.Country.IsoCode
 	}
 
 	if geoIP.Location.Latitude == 0 && record.Location.Latitude != 0 {
