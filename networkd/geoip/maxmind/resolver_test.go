@@ -69,10 +69,8 @@ func TestMaxmind_Lite(t *testing.T) {
 
 	require.NoError(t, err)
 
-	geoIP := resolver.Resolve("1.128.0.0")
-	require.NotEmpty(t, geoIP.AS.Name)
-
-	geoIP = resolver.Resolve("81.2.69.142")
+	geoIP := resolver.Resolve("81.2.69.142")
 	require.NotEmpty(t, geoIP.Country.Name)
 	require.NotEmpty(t, geoIP.City.Code)
+	require.NotEmpty(t, geoIP.AS.Name)
 }
