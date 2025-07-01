@@ -17,19 +17,8 @@ func (a *countryResolver) handle(ip net.IP, geoIP *networkd.GeoIP) {
 		return
 	}
 
-	if geoIP.Continent.Code == "" && record.Continent.Code != "" {
-		geoIP.Continent.Code = record.Continent.Code
-	}
-
-	if geoIP.Continent.Name == "" && record.Continent.Names["en"] != "" {
-		geoIP.Continent.Name = record.Continent.Names["en"]
-	}
-
-	if geoIP.Country.Code == "" && record.Country.IsoCode != "" {
-		geoIP.Country.Code = record.Country.IsoCode
-	}
-
-	if geoIP.Country.Name == "" && record.Country.Names["en"] != "" {
-		geoIP.Country.Name = record.Country.Names["en"]
-	}
+	writeIfNotEmpty(&geoIP.Continent.Code, record.Continent.Code)
+	writeIfNotEmpty(&geoIP.Continent.Name, record.Continent.Names["en"])
+	writeIfNotEmpty(&geoIP.Country.Code, record.Country.IsoCode)
+	writeIfNotEmpty(&geoIP.Country.Name, record.Country.Names["en"])
 }

@@ -17,8 +17,7 @@ func (a *ispResolver) handle(ip net.IP, geoIP *networkd.GeoIP) {
 		return
 	}
 
-	if geoIP.AS.Name == "" && record.ISP != "" {
-		geoIP.AS.Name = record.ISP
+	if writeIfNotEmpty(&geoIP.AS.Name, record.ISP) {
 		geoIP.AS.Type = "isp"
 	}
 }

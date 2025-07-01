@@ -17,7 +17,5 @@ func (a *domainResolver) handle(ip net.IP, geoIP *networkd.GeoIP) {
 		return
 	}
 
-	if geoIP.AS.Domain == "" && record.Domain != "" {
-		geoIP.AS.Domain = record.Domain
-	}
+	writeIfNotEmpty(&geoIP.AS.Domain, record.Domain)
 }

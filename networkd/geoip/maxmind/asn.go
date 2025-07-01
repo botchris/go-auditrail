@@ -18,9 +18,7 @@ func (a *asnResolver) handle(ip net.IP, geoIP *networkd.GeoIP) {
 		return
 	}
 
-	if geoIP.AS.Name == "" && record.AutonomousSystemOrganization != "" {
-		geoIP.AS.Name = record.AutonomousSystemOrganization
-	}
+	writeIfNotEmpty(&geoIP.AS.Name, record.AutonomousSystemOrganization)
 
 	if geoIP.AS.Number == "" && record.AutonomousSystemNumber != 0 {
 		geoIP.AS.Number = fmt.Sprintf("AS%d", record.AutonomousSystemNumber)

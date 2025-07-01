@@ -17,7 +17,5 @@ func (a *connectionTypeResolver) handle(ip net.IP, geoIP *networkd.GeoIP) {
 		return
 	}
 
-	if geoIP.AS.Type == "" && record.ConnectionType != "" {
-		geoIP.AS.Type = record.ConnectionType
-	}
+	writeIfNotEmpty(&geoIP.AS.Type, record.ConnectionType)
 }
